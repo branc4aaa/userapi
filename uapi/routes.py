@@ -18,6 +18,9 @@ async def create_user(user: UserCreate, db: Session = Depends(getDB)):
         db_user = db.query(models.User).filter(models.User.email == user.email).first()
         if db_user:
             raise HTTPException(status_code=400, detail="Email already registered")
+        if db.query(models.User).filter(models.User.username == user.username).first():
+            raise HTTPException(status_code=400, detail="Username already exists")
+
         new_user = models.User(email=user.email, username=user.username, full_name=user.full_name, password_hash=user.password)#hash pending
         db.add(new_user)   
         db.commit()
@@ -55,3 +58,19 @@ async def delete_user(user_id: int, db: Session = Depends(getDB)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+
+@router.put("/users/{user_id}", response_model=UserBase)
+async def update_user(user_id: int, user: UserCreate, db: Session = Depends(getDB)):
+    try:
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if db_user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        db_user.email = user.email
+        db_user.username = user.username
+        db_user.full_name = user.full_name
+        db_user.password_hash = user.password  #hash pending
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
